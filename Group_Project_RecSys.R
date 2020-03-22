@@ -21,6 +21,7 @@ lfm_tags <- read.delim("tags.dat", header = TRUE, sep = "\t")
 lastfm <- read.delim("user_artists.dat", header = TRUE, sep = "\t")
 user_tags <- read.delim("user_taggedartists.dat", header = TRUE, sep = "\t") %>% select(userID, artistID, tagID)
 
+
 #------------------------------ create the matrix for collaborative filtering -------------------------------------#
 
 #### Categorization of data with percentile ####
@@ -383,9 +384,6 @@ MAE(prediction1,lr_mat1)
 F1_Score(prediction1,lr_mat1, 5)
 
 
-
-
-
 #---------------------------------------------------------------------------------------------------------------#
 #----------------------------------- Item-based collaborative filtering ----------------------------------------#
 #---------------------------------------------------------------------------------------------------------------#
@@ -681,3 +679,93 @@ y_pred = prediction_CB
 y_true = test
 CB_F1 = F1_Score(y_pred, y_true, 5)
 
+#---------------------------------------------------------------------------------------------------------------#
+#----------------------------------- Hybrid(Content-based & Item-based) ----------------------------------------#
+#---------------------------------------------------------------------------------------------------------------#
+
+### Transform results of the Content Based and Item Based to lists  ###
+
+CB_list <-  as.list(CB$prediction)
+#test_CBF
+ResultsIBCF_list <- as.list(ResultsIBCF$prediction)
+
+####################
+### Compute Mean ###
+####################
+hybrid <- rowMeans(cbind(as.numeric(CB_list), as.numeric(ResultsIBCF_list)), na.rm=T)
+
+
+### Transform list back to matrix with correct number of dimensions ###
+Hybrid_prediction <- matrix(hybrid, nrow=nrow(test), ncol=ncol(test))
+rownames(Hybrid_prediction) <- rownames(test)
+colnames(Hybrid_prediction) <- colnames(test)
+
+
+### Evaluate ###
+# RMSE
+RMSE(Hybrid_prediction, test)
+
+MAE(Hybrid_prediction, test)
+
+
+#---------------------------------------------------------------------------------------------------------------#
+#----------------------------------- Hybrid(Content-based & User-based) ----------------------------------------#
+#---------------------------------------------------------------------------------------------------------------#
+
+# Train a linear Regression
+
+LastFM_Matrix <- as(lr_mat,"matrix")
+train <- LastFM_Matrix[1:1497,]
+test <- LastFM_Matrix[1498:1871,]
+test1 <- test[1:187,]
+test2 <- test[188:374,]
+
+### flatten test dataset
+test_list <- as.list(test1)
+CB_list <-  as.list(CB$prediction)
+UB_list <-  as.list(prediction1)
+
+### Transform list and matrices to dataframe
+test_df <- data.frame(matrix(unlist(test_list), byrow=T))
+CB_df <- data.frame(matrix(unlist(CB_list), byrow=T))
+UB_df <- data.frame(matrix(unlist(UB_list), byrow=T))
+
+
+### Combine created dataframes
+library(qpcR)
+input <- qpcR:::cbind.na(test_df, CB_df, UB_df)
+colnames(input) <- c('TARGET', 'CB', 'UB')
+
+### Train the linear regression
+fit <- lm(TARGET ~ CB + UB, data=input)
+summary(fit)
+
+### Score Models
+CB_2 <- ContentBased(ag_mat, test2, 3, 10, onlyNew=F)
+
+UB2 <- ItemBasedCF(train, test2, 3, 10, onlyNew=F)
+
+### Matrix to list
+test_list2 <- as.list(test2)
+CB_list2 <- as.list(CB_2$prediction)
+UB_list2 <- as.list(UB2$prediction)
+
+### List to dataframe
+test_df2 <- data.frame(matrix(unlist(test_list2), byrow=T))
+CB_df2 <- data.frame(matrix(unlist(CB_list2), byrow=T))
+UB_df2 <- data.frame(matrix(unlist(UB_list2), byrow=T))
+
+### combine dataframes to have an input dataset for linear regression
+input2 <- qpcR:::cbind.na(test_df2, CB_df2, UB_df2)
+colnames(input2) <- c('TARGET', 'CB', 'UB')
+
+### Predict using the model calculated on test2 dataset
+Hybrid_lin_reg <- predict(fit, input2)
+
+### Transform the list of results to matrix with the correct dimensions
+Hybrid_lin_reg <- matrix(Hybrid_lin_reg, nrow=nrow(test2), ncol=ncol(test2))
+rownames(Hybrid_lin_reg) <- rownames(test2)
+colnames(Hybrid_lin_reg) <- colnames(test2)
+
+# Evaluation
+MAE(Hybrid_lin_reg, test1)
