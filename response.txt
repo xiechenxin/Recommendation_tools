@@ -1,0 +1,27 @@
+[
+    {
+        "artistID": 1766,
+        "name": "Little Joy",
+        "score": 6.0
+    },
+    {
+        "artistID": 1633,
+        "name": "Fleet Foxes",
+        "score": 5.371170855
+    },
+    {
+        "artistID": 1781,
+        "name": "Emilie Simon",
+        "score": 5.0
+    },
+    {
+        "artistID": 1958,
+        "name": "The Flaming Lips",
+        "score": 3.162271553
+    },
+    {
+        "artistID": 898,
+        "name": "Tegan and Sara",
+        "score": 2.99215868
+    }
+]
